@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汽水曲库互通播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #0f172a;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --hover: #f1f5f9;
+            --playing: #dbeafe;
+            --success: #059669;
+            --error: #dc2626;
+            --warning: #d97706;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 15px 15px 110px;
+            max-width: 100%;
+            min-height: 100vh;
+        }
+        /* 头部区域 */
+        .header {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .site-title {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .update-btn {
+            padding: 8px 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .update-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+        .update-btn:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+        /* 平台切换提示 */
+        .platform-tip {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+        /* 状态提示条 */
+        .status-bar {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .status-loading {
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            display: block;
+        }
+        .status-success {
+            background: #f0fdf4;
+            color: var(--success);
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+        .status-error {
+            background: #fef2f2;
+            color: var(--error);
+            border: 1px solid #fecaca;
+            display: block;
+        }
+        .status-warning {
+            background: #fffbeb;
+            color: var(--warning);
+            border: 1px solid #fed7aa;
+            display: block;
+        }
+        /* 搜索框 */
+        .search-box {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            background: var(--card);
+            color: var(--text-main);
+            margin-bottom: 15px;
+        }
+        .search-box:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        /* 歌曲列表 */
+        .song-list {
+            background: var(--card);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .song-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f2f3f5;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .song-item:last-child {
+            border-bottom: none;
+        }
+        .song-item:hover {
+            background: var(--hover);
+        }
+        .song-item.playing {
+            background: var(--playing);
+            color: var(--primary);
+            font-weight: 500;
+        }
+        .song-name {
+            font-size: 16px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .song-info {
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        /* 底部播放栏 */
+        .player-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            padding: 12px 15px;
+            z-index: 999;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.08);
+        }
+        .player-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .playing-info {
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .playing-name {
+            font-size: 15px;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .playing-singer {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .progress-area {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .time-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            min-width: 35px;
+        }
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: #ebeef5;
+            border-radius: 4px;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .progress-filled {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+        .control-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #606266;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .play-pause-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+        }
+        .empty-tip {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        /* 暗黑模式适配 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --card: #1e293b;
+                --text-main: #f8fafc;
+                --text-secondary: #cbd5e1;
+                --border: #334155;
+                --hover: #334155;
+                --playing: #1e3a5f;
+            }
+        }
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .site-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部区域 -->
+    <div class="header">
+        <div class="header-top">
+            <h1 class="site-title">汽水曲库互通播放器</h1>
+            <button class="update-btn" id="updateBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                </svg>
+                同步歌曲
+            </button>
+        </div>
+        <div class="status-bar" id="statusBar"></div>
+        <div class="platform-tip" id="platformTip">曲库来源：QQ音乐(抖音/汽水音乐互通)</div>
+        <input type="text" class="search-box" id="searchInput" placeholder="搜索歌名/歌手/专辑...">
+    </div>
+
+    <!-- 歌曲列表 -->
+    <div class="song-list" id="songList">
+        <div class="empty-tip">正在加载歌曲列表...</div>
+    </div>
+
+    <!-- 底部播放控制栏 -->
+    <div class="player-bar">
+        <div class="player-container">
+            <div class="playing-info">
+                <div class="playing-name" id="playingName">请点击歌曲开始播放</div>
+                <div class="playing-singer" id="playingSinger">暂无播放</div>
+            </div>
+            <div class="progress-area">
+                <span class="time-text" id="currentTime">00:00</span>
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-filled" id="progressFilled"></div>
+                </div>
+                <span class="time-text" id="durationTime">00:00</span>
+            </div>
+            <div class="controls">
+                <button class="control-btn" id="prevBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    </svg>
+                </button>
+                <button class="control-btn play-pause-btn" id="playPauseBtn">
+                    <svg id="playIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <svg id="pauseIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                </button>
+                <button class="control-btn" id="nextBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 音频播放器 -->
+    <audio id="audioPlayer" crossOrigin="anonymous">
+
+    <script>
+        // ===================== 核心配置 =====================
+        // 原站地址（自动同步歌曲列表）
+        const ORIGIN_SITE = "https://www.95267710.xyz/";
+        // CORS代理（解决跨域拉取原站内容，2个备用节点自动切换）
+        const CORS_PROXY_LIST = [
+            "https://api.allorigins.win/raw?url=",
+            "https://corsproxy.io/?",
+            "https://cors-proxy.htmldriven.com/?url="
+        ];
+        // 音乐API节点（QQ音乐为主，汽水音乐备用，自动切换）
+        const API_CONFIG = {
+            // 主用：QQ音乐（抖音/汽水曲库互通，稳定无限制）
+            main: {
+                name: "QQ音乐",
+                server: "tencent",
+                apiList: [
+                    "https://meting-api.vercel.app/api",
+                    "https://api.injahow.cn/meting/api.php",
+                    "https://met.api.xiaoguan.fit"
+                ]
+            },
+            // 备用：汽水音乐兜底
+            backup: {
+                name: "汽水音乐",
+                apiList: [
+                    "https://api.haircv.com/api/qsmusic"
+                ]
+            }
+        };
+        // 当前使用的API节点
+        let CURRENT_API = API_CONFIG.main.apiList[0];
+        let CURRENT_PLATFORM = API_CONFIG.main;
+        // 内置兜底离线歌曲（所有更新都失败时使用）
+        const DEFAULT_SONGS = [
+            { id: 1, name: "老男孩", singer: "筷子兄弟", album: "老男孩", url: "https://music.163.com/song/media/outer/url?id=29376039.mp3" },
+            { id: 2, name: "红色高跟鞋", singer: "蔡健雅", album: "若你碰到他", url: "https://music.163.com/song/media/outer/url?id=5232511.mp3" },
+            { id: 3, name: "别怕变老", singer: "王以太", album: "幸存者的负罪感", url: "https://music.163.com/song/media/outer/url?id=1884161394.mp3" },
+            { id: 4, name: "醉赤壁", singer: "林俊杰", album: "JJ陆", url: "https://music.163.com/song/media/outer/url?id=108194.mp3" },
+            { id: 5, name: "偏爱", singer: "张芸京", album: "仙剑奇侠传三", url: "https://music.163.com/song/media/outer/url?id=86312.mp3" },
+            { id: 6, name: "后来", singer: "刘若英", album: "我等你", url: "https://music.163.com/song/media/outer/url?id=187604.mp3" },
+            { id: 7, name: "泡沫", singer: "G.E.M.邓紫棋", album: "The Best of G.E.M.", url: "https://music.163.com/song/media/outer/url?id=25638300.mp3" },
+            { id: 8, name: "荷塘月色", singer: "凤凰传奇", album: "我从草原来", url: "https://music.163.com/song/media/outer/url?id=73964.mp3" },
+            { id: 9, name: "山丘", singer: "李宗盛", album: "山丘", url: "https://music.163.com/song/media/outer/url?id=26379441.mp3" },
+            { id: 10, name: "牵丝戏", singer: "银临", album: "牵丝戏", url: "https://music.163.com/song/media/outer/url?id=308153009.mp3" },
+        ];
+
+        // ===================== 全局变量 =====================
+        let songList = [];
+        let filteredList = [];
+        let currentIndex = -1;
+        const audioPlayer = document.getElementById('audioPlayer');
+        const statusBar = document.getElementById('statusBar');
+        const updateBtn = document.getElementById('updateBtn');
+        const platformTip = document.getElementById('platformTip');
+
+        // ===================== 工具函数 =====================
+        // 显示状态提示
+        function showStatus(text, type = "loading", duration = 3000) {
+            statusBar.textContent = text;
+            statusBar.className = `status-bar status-${type}`;
+            if (duration > 0) {
+                setTimeout(() => statusBar.style.display = 'none', duration);
+            }
+            console.log(`[${type}]`, text);
+        }
+
+        // 时间格式化
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '00:00';
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        // 清理歌曲关键词，提高匹配率
+        function cleanKeyword(text) {
+            return text.replace(/\(.*?\)|（.*?）|feat\..*|ft\..*/gi, '').trim();
+        }
+
+        // 切换API节点
+        function switchApiNode(platform = API_CONFIG.main) {
+            const currentList = platform.apiList;
+            const currentIdx = currentList.indexOf(CURRENT_API);
+            const nextIdx = (currentIdx + 1) % currentList.length;
+            CURRENT_API = currentList[nextIdx];
+            CURRENT_PLATFORM = platform;
+            platformTip.textContent = `曲库来源：${platform.name}`;
+            showStatus(`已切换至${platform.name}节点，继续尝试...`, "warning", 2000);
+        }
+
+        // 本地存储操作
+        function saveToLocal(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                console.warn('本地存储失败', e);
+            }
+        }
+        function getFromLocal(key) {
+            try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.warn('本地读取失败', e);
+                return null;
+            }
+        }
+
+        // ===================== 核心API请求函数 =====================
+        // 带重试的CORS请求（拉取原站列表）
+        async function fetchWithProxy(url, retry = 0) {
+            if (retry >= CORS_PROXY_LIST.length) throw new Error("所有代理节点均请求失败");
+            try {
+                const proxyUrl = `${CORS_PROXY_LIST[retry]}${encodeURIComponent(url)}`;
+                const res = await fetch(proxyUrl, { timeout: 10000 });
+                if (!res.ok) throw new Error(`请求失败: ${res.status}`);
+                return await res.text();
+            } catch (e) {
+                console.error(`代理${retry}请求失败`, e);
+                return fetchWithProxy(url, retry + 1);
+            }
+        }
+
+        // 1. 拉取原站页面，解析歌曲列表
+        async function fetchOriginSongs() {
+            showStatus("正在同步原站最新歌曲列表...", "loading", 0);
+            try {
+                const html = await fetchWithProxy(ORIGIN_SITE);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const rows = doc.querySelectorAll('table tr');
+                
+                if (!rows || rows.length <= 1) throw new Error("未解析到歌曲列表");
+
+                const songs = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const tds = rows[i].querySelectorAll('td');
+                    if (tds.length >= 4) {
+                        const id = parseInt(tds[0].textContent.trim()) || i;
+                        const album = tds[1].textContent.trim();
+                        const singer = tds[2].textContent.trim();
+                        const name = tds[3].textContent.trim();
+                        if (name && singer) {
+                            songs.push({ id, name, singer, album, url: null });
+                        }
+                    }
+                }
+
+                if (songs.length === 0) throw new Error("原站歌曲列表为空");
+                showStatus(`原站同步成功，共获取到${songs.length}首歌曲`, "success", 2000);
+                saveToLocal("origin_songs", songs);
+                return songs;
+            } catch (e) {
+                console.error("原站同步失败", e);
+                showStatus(`原站同步失败: ${e.message}，尝试加载缓存`, "error", 2000);
+                const localSongs = getFromLocal("origin_songs");
+                if (localSongs && localSongs.length > 0) {
+                    showStatus(`已加载本地缓存的${localSongs.length}首歌曲`, "warning", 2000);
+                    return localSongs;
+                }
+                throw e;
+            }
+        }
+
+        // 2. 核心：搜索歌曲获取播放链接（双平台自动切换）
+        async function getSongPlayUrl(singer, name, retry = 0, useBackup = false) {
+            const platform = useBackup ? API_CONFIG.backup : API_CONFIG.main;
+            const keywords = [
+                `${singer} ${name}`,
+                cleanKeyword(`${singer} ${name}`),
+                name,
+                cleanKeyword(name)
+            ];
+
+            // 主平台：QQ音乐MetingAPI
+            if (!useBackup) {
+                for (let keyword of keywords) {
+                    if (!keyword) continue;
+                    try {
+                        showStatus(`正在${platform.name}搜索：${keyword}`, "loading", 1000);
+                        const searchUrl = `${CURRENT_API}?server=${platform.server}&type=search&keyword=${encodeURIComponent(keyword)}`;
+                        const res = await fetch(searchUrl, { timeout: 8000 });
+                        if (!res.ok) throw new Error("搜索请求失败");
+                        const searchData = await res.json();
+                        
+                        if (searchData && searchData.length > 0) {
+                            // 优先匹配歌手+歌名
+                            const matchSong = searchData.find(item => {
+                                const singerMatch = item.artist.includes(singer) || singer.includes(item.artist);
+                                const songMatch = item.name.includes(name) || name.includes(item.name);
+                                return singerMatch && songMatch;
+                            });
+                            const targetId = matchSong ? matchSong.url_id : searchData[0].url_id;
+                            
+                            // 获取播放链接
+                            const urlRes = await fetch(`${CURRENT_API}?server=${platform.server}&type=url&id=${targetId}`, { timeout: 8000 });
+                            const urlData = await urlRes.json();
+                            
+                            if (urlData && urlData.length > 0 && urlData[0].url) {
+                                return urlData[0].url;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`关键词「${keyword}」匹配失败`, e);
+                        continue;
+                    }
+                }
+
+                // 主平台节点重试
+                if (retry < platform.apiList.length) {
+                    switchApiNode(platform);
+                    return getSongPlayUrl(singer, name, retry + 1, useBackup);
+                }
+
+                // 主平台全部失败，切换备用汽水音乐
+                showStatus("主平台无资源，切换汽水音乐兜底", "warning", 1500);
+                return getSongPlayUrl(singer, name, 0, true);
+            }
+
+            // 备用平台：汽水音乐
+            if (useBackup) {
+                try {
+                    showStatus(`正在汽水音乐搜索：${name}`, "loading", 1000);
+                    // 汽水音乐搜索+解析（免费公益节点）
+                    const searchUrl = `https://api.avdgw.com/api/qishuiyy?key=35kj5jnlj53453kl5j43nj5&keyword=${encodeURIComponent(name)}`;
+                    const res = await fetch(searchUrl, { timeout: 10000 });
+                    const data = await res.json();
+                    
+                    if (data.code === 200 && data.data && data.data.length > 0) {
+                        const matchSong = data.data.find(item => item.singer.includes(singer) || item.name.includes(name));
+                        const targetUrl = matchSong ? matchSong.url : data.data[0].url;
+                        if (targetUrl) return targetUrl;
+                    }
+                } catch (e) {
+                    console.error("汽水音乐搜索失败", e);
+                }
+            }
+
+            throw new Error(`「${name} - ${singer}」暂无可用播放资源`);
+        }
+
+        // 3. 完整更新歌曲流程
+        async function updateSongList() {
+            updateBtn.disabled = true;
+            try {
+                let songs = await fetchOriginSongs();
+                showStatus("正在预加载热门歌曲...", "loading", 0);
+                // 预加载前10首热门歌曲
+                for (let i = 0; i < Math.min(10, songs.length); i++) {
+                    if (!songs[i].url) {
+                        try {
+                            songs[i].url = await getSongPlayUrl(songs[i].singer, songs[i].name);
+                        } catch (e) {
+                            console.warn(`预加载失败`, e);
+                        }
+                    }
+                }
+                songList = songs;
+                filteredList = [...songs];
+                renderSongList(filteredList);
+                saveToLocal("full_songs", songs);
+                showStatus("歌曲列表更新完成！点击歌曲即可播放", "success", 3000);
+            } catch (e) {
+                console.error("更新失败", e);
+                // 终极兜底
+                const localFull = getFromLocal("full_songs");
+                if (localFull && localFull.length > 0) {
+                    songList = localFull;
+                    filteredList = [...localFull];
+                    renderSongList(filteredList);
+                    showStatus("已加载本地缓存歌曲列表", "warning", 3000);
+                } else {
+                    songList = DEFAULT_SONGS;
+                    filteredList = [...DEFAULT_SONGS];
+                    renderSongList(filteredList);
+                    showStatus("网络异常，已加载离线兜底歌曲", "error", 3000);
+                }
+            } finally {
+                updateBtn.disabled = false;
+            }
+        }
+
+        // ===================== 播放核心函数 =====================
+        async function playSong(index) {
+            if (index < 0 || index >= filteredList.length) return;
+            const song = filteredList[index];
+            currentIndex = index;
+
+            // 更新播放信息
+            document.getElementById('playingName').textContent = song.name;
+            document.getElementById('playingSinger').textContent = song.singer;
+            
+            // 高亮播放项
+            document.querySelectorAll('.song-item').forEach(item => item.classList.remove('playing'));
+            const targetItem = document.querySelector(`.song-item[data-index="${index}"]`);
+            if (targetItem) targetItem.classList.add('playing');
+
+            try {
+                // 无播放链接则实时获取
+                if (!song.url) {
+                    showStatus(`正在加载「${song.name}」...`, "loading", 0);
+                    song.url = await getSongPlayUrl(song.singer, song.name);
+                    saveToLocal("full_songs", songList);
+                }
+                // 播放歌曲
+                audioPlayer.src = song.url;
+                audioPlayer.load();
+                
+                const playPromise = audioPlayer.play();
+                if (playPromise) {
+                    playPromise.then(() => {
+                        showStatus(`正在播放：${song.name}`, "success", 1500);
+                        updatePlayIcon();
+                    }).catch(err => {
+                        showStatus("浏览器限制自动播放，请点击底部播放按钮", "warning");
+                        console.error(err);
+                    });
+                }
+            } catch (e) {
+                showStatus(e.message || "歌曲加载失败，自动切换下一首", "error");
+                console.error("播放失败", e);
+                setTimeout(playNext, 1500);
+            }
+        }
+
+        // 更新播放/暂停图标
+        function updatePlayIcon() {
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            playIcon.style.display = audioPlayer.paused ? 'block' : 'none';
+            pauseIcon.style.display = audioPlayer.paused ? 'none' : 'block';
+        }
+
+        // 上一首/下一首
+        function playPrev() {
+            if (filteredList.length === 0) return;
+            const prevIndex = currentIndex <= 0 ? filteredList.length - 1 : currentIndex - 1;
+            playSong(prevIndex);
+        }
+        function playNext() {
+            if (filteredList.length === 0) return;
+            const nextIndex = currentIndex >= filteredList.length - 1 ? 0 : currentIndex + 1;
+            playSong(nextIndex);
+        }
+
+        // ===================== 列表渲染 =====================
+        function renderSongList(list) {
+            const songListDom = document.getElementById('songList');
+            songListDom.innerHTML = '';
+            filteredList = list;
+
+            if (list.length === 0) {
+                songListDom.innerHTML = '<div class="empty-tip">暂无匹配的歌曲</div>';
+                return;
+            }
+
+            list.forEach((song, index) => {
+                const item = document.createElement('div');
+                item.className = 'song-item';
+                item.dataset.index = index;
+                item.innerHTML = `
+                    <div class="song-name">${song.name}</div>
+                    <div class="song-info">${song.singer} | ${song.album}</div>
+                `;
+                item.addEventListener('click', () => playSong(index));
+                songListDom.appendChild(item);
+            });
+        }
+
+        // ===================== 事件监听 =====================
+        window.onload = () => {
+            // 页面加载自动更新
+            updateSongList();
+
+            // 手动同步按钮
+            updateBtn.addEventListener('click', updateSongList);
+
+            // 搜索筛选
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const keyword = e.target.value.trim().toLowerCase();
+                const filtered = songList.filter(song => {
+                    return song.name.toLowerCase().includes(keyword) 
+                        || song.singer.toLowerCase().includes(keyword)
+                        || song.album.toLowerCase().includes(keyword);
+                });
+                renderSongList(filtered);
+            });
+
+            // 播放/暂停按钮
+            document.getElementById('playPauseBtn').addEventListener('click', () => {
+                if (!audioPlayer.src) {
+                    playSong(0);
+                    return;
+                }
+                if (audioPlayer.paused) {
+                    audioPlayer.play().catch(err => showStatus("播放失败，请重试", "error"));
+                } else {
+                    audioPlayer.pause();
+                }
+                updatePlayIcon();
+            });
+
+            // 上一首/下一首
+            document.getElementById('prevBtn').addEventListener('click', playPrev);
+            document.getElementById('nextBtn').addEventListener('click', playNext);
+
+            // 进度更新
+            audioPlayer.addEventListener('timeupdate', () => {
+                if (isNaN(audioPlayer.duration)) return;
+                const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                document.getElementById('progressFilled').style.width = `${progress}%`;
+                document.getElementById('currentTime').textContent = formatTime(audioPlayer.currentTime);
+            });
+
+            // 音频元数据加载
+            audioPlayer.addEventListener('loadedmetadata', () => {
+                document.getElementById('durationTime').textContent = formatTime(audioPlayer.duration);
+            });
+
+            // 播放结束自动下一首
+            audioPlayer.addEventListener('ended', playNext);
+
+            // 播放状态同步
+            audioPlayer.addEventListener('play', updatePlayIcon);
+            audioPlayer.addEventListener('pause', updatePlayIcon);
+
+            // 音频加载错误
+            audioPlayer.addEventListener('error', () => {
+                showStatus("音频加载失败，自动切换下一首", "error");
+                setTimeout(playNext, 1000);
+            });
+
+            // 进度条点击跳转
+            document.getElementById('progressBar').addEventListener('click', (e) => {
+                if (!audioPlayer.src || isNaN(audioPlayer.duration)) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                audioPlayer.currentTime = percent * audioPlayer.duration;
+            });
+        };
+    </script>
+</body>
+</html>
